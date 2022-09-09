@@ -1,12 +1,13 @@
 import time
-import yaml
-import tensorflow as tf
 
+import tensorflow as tf
+'''
+import yaml
 def read_config(config_path):
     with open(config_path) as config_file:
         content = yaml.safe_load(config_file)
     return content
-
+'''
 def get_unique_filename(filename, is_model_name = False):
     if is_model_name:
         time_stamp = time.strftime("_on_%Y%m%d_at_%H%M%S_.h5")
