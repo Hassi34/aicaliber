@@ -27,7 +27,7 @@ setuptools.setup(
     packages=setuptools.find_packages(where="src"),
     python_requires=">=3.7",
     install_requires = [
-        "tensorflow >= 2.9.0",
+        "tensorflow == 2.8.2",
         "pandas >= 1.3.5"
     ]
 )   
