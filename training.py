@@ -1,4 +1,4 @@
-from TensorFlow.CV.model import Experiment
+from src.aicaliber.tensorflow.cv.model import Experiment
 import config
 
 def training(config):

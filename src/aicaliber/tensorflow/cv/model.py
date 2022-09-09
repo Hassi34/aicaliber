@@ -8,10 +8,10 @@ import os
 import timeit
 import pandas as pd
 import matplotlib.pyplot as plt
-from TensorFlow.CV.callbacks import get_callbacks
-from TensorFlow.CV.common import get_unique_filename, set_memory_growth
-from TensorFlow.CV.model_zoo import download_base_model
-from TensorFlow.CV.data_management import get_data_generators
+from .callbacks import get_callbacks
+from .common import get_unique_filename, set_memory_growth
+from .model_zoo import download_base_model
+from .data_management import get_data_generators
 import uuid
 import datetime
 import csv

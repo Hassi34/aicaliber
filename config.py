@@ -1,6 +1,3 @@
-# params:
-from TensorFlow.CV.model import Experiment
-
 
 data_dir = "data_folder"
 train_folder_name = "train"

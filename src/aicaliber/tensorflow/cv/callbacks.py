@@ -1,6 +1,6 @@
 import tensorflow as tf
 import os
-from TensorFlow.CV.common import get_unique_filename
+from .common import get_unique_filename
 
 
 def get_callbacks (es_patience, callbacked_model_name ,model_ckpt_path, TENSORBOARD_ROOT_LOG_DIR):
