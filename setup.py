@@ -8,7 +8,7 @@ USERNAME = "Hassi34"
 
 setuptools.setup(
     name=f"{PROJECT_NAME}",
-    version="0.0.2",
+    version="0.0.3",
     author= USERNAME,
     author_email="hasnainmehmood3435@gmail.com",
     description="A high-level python Framework with low-code support for Machine and Deep Learning",
@@ -28,6 +28,6 @@ setuptools.setup(
     python_requires=">=3.7",
     install_requires = [
         "tensorflow >= 2.9.0",
-        "pandas >= 1.4.0"
+        "pandas >= 1.3.5"
     ]
 )   
