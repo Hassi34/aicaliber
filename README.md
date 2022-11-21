@@ -1,2 +1,2 @@
-Use [**OneSpace**](https://pepy.tech/badge/aicaliber) instead.
+Use [**OneSpace**](https://pypi.org/project/onespace/) instead.
 
