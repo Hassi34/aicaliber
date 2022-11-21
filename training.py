@@ -1,9 +1,9 @@
-from src.aicaliber.tensorflow.cv.model import Experiment
-import config
+from src.aicaliber.tabular.classification.model import Experiment
+import tabularConfig
 
 def training(config):
     exp = Experiment(config)
     exp.run_experiment()
 
 if __name__ == "__main__":
-    training(config)
+    training(tabularConfig)

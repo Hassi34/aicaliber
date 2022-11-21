@@ -3,9 +3,9 @@ import os
 from .common import get_unique_filename
 
 
-def get_callbacks (es_patience, callbacked_model_name ,model_ckpt_path, tensorboard_logs_dir):
+def get_callbacks (es_patience, callbacked_model_name ,model_ckpt_path, TENSORBOARD_ROOT_LOG_DIR):
     #Tensorboard Callback 
-    tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir = tensorboard_logs_dir)
+    tensorboard_cb = tf.keras.callbacks.TensorBoard(log_dir = TENSORBOARD_ROOT_LOG_DIR)
     #Early stopping callback
     early_stopping_cb = tf.keras.callbacks.EarlyStopping(patience=es_patience, restore_best_weights=True)
     #Model Checkpointing callback (Helpful in backup, would save the last checkpoint in crashing)

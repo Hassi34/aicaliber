@@ -2,22 +2,24 @@
 Author : Hasnain Mehmood
 Contact : hasnainmehmood3435@gmail.com 
 """
-
 import tensorflow as tf 
 import os
 import timeit
 import pandas as pd
 import matplotlib.pyplot as plt
 from .callbacks import get_callbacks
-from .common import get_unique_filename, set_memory_growth
+from .common import get_unique_filename, set_memory_growth, img_to_array, get_classwise_img_count
 from .model_zoo import download_base_model
 from .data_management import get_data_generators
+from .param_selection import learning_rate_decay, get_optimizer
 import uuid
 import datetime
 import csv
+import random
 
 class Experiment:
-    """ This class shall be used to train an end to end ANN model with callback
+    """ This class shall be used to train a Convolutional Neural Network and 
+        save the complete logs and data associated with it
         Written by : Hasnain
     """
     def __init__(self, config):
@@ -36,6 +38,7 @@ class Experiment:
         self.MODEL_ARCHITECTURE = config.model_architecture
         self.FREEZE_ALL = config.freeze_all
         self.FREEZ_TILL = config.freeze_till
+        self.LR_SCHEDULER = config.lr_scheduler
 
         self.data_dir = os.path.join(".",config.data_dir)
         self.TransferLearning  = config.transfer_learning
@@ -57,13 +60,14 @@ class Experiment:
         self.executed_by = config.executed_by
 
     def run_experiment(self):
-        """This method will get the variables initialized with class 
-            And will provide the model architecture for next methods
+        """This method will start an experiment
+           with variables provided at initialization
             Written by : Hasnain
         """
+        self.parent_dir = os.path.join("ComputerVision", "TensorFlow")
         set_memory_growth()
 
-        if self.train_folder_name is not None:
+        if not isinstance(self.train_folder_name , type(None)):
             self.train_dir = os.path.join(self.data_dir ,self.train_folder_name)
             self.val_dir = os.path.join(self.data_dir ,self.val_folder_name)
         else: 
@@ -78,11 +82,12 @@ class Experiment:
                                                                         self.train_dir, 
                                                                         self.val_dir
                                                                         )
+
         self.NUM_CLASSES = self.train_generator.num_classes
+        self.save_image_grid()
+        self.print_classwise_img_count()
         if self.TransferLearning:
             self.base_model = download_base_model(self.MODEL_ARCHITECTURE, self.IMAGE_SIZE)
-            
-            #base_model_name = "base_"+base_architecture+"_model.h5"
             self.save_base_model()
             print("*****" * 13)
             print("Base Model Summary")
@@ -92,7 +97,7 @@ class Experiment:
             if self.FREEZE_ALL:
                 for layer in self.base_model.layers:
                     layer.trainable = False
-            elif (self.FREEZ_TILL is not None) and (self.FREEZ_TILL > 0):
+            elif not isinstance(self.FREEZ_TILL, type(None)):
                 for layer in self.base_model.layers[:self.FREEZ_TILL]:
                     layer.trainable = False
 
@@ -111,13 +116,21 @@ class Experiment:
             print("*****" * 13)
             print("Custom Model Summary")
             print("*****" * 13)
-            self.custom_model.summary()
-
-            self.custom_model.compile(
-                optimizer = self.OPTIMIZER,
+            #self.custom_model.summary()
+            if not isinstance(self.LR_SCHEDULER, type(None)):
+                lr_schedule = learning_rate_decay(self.LR_SCHEDULER)
+                optimizer_with_lr_schedule = get_optimizer(self.OPTIMIZER, lr_schedule)
+                self.custom_model.compile(
                 loss = self.LOSS_FUNCTION,
+                optimizer = optimizer_with_lr_schedule,
                 metrics = self.METRICS
             )
+            else :
+                self.custom_model.compile(
+                    loss = self.LOSS_FUNCTION,
+                    optimizer = self.OPTIMIZER,
+                    metrics = self.METRICS
+                )
             self.custom_model = self.fit_model(self.custom_model)
             self.save_final_model(self.custom_model)
             self.save_plot()
@@ -129,39 +142,51 @@ class Experiment:
                 tf.keras.layers.Dense(100, activation = self.ACTIVATION, name = "hiddenLayer2"),
                 tf.keras.layers.Dense(self.NUM_CLASSES, activation = self.ACTIVATION_OUTPUT, name = "OutputLayer")
             ]
-            
             self.custom_model = tf.keras.models.Sequential(LAYERS)
             print("\n")
             print("*****" * 13)
             print("Custom model summary")
             print("*****" * 13)
             self.custom_model.summary()
-            self.custom_model.compile(
-                loss = self.LOSS_FUNCTION,
-                optimizer = self.OPTIMIZER,
-                metrics = self.METRICS
-            )
+            if not isinstance(self.LR_SCHEDULER, type(None)):
+                lr_schedule = learning_rate_decay(self.LR_SCHEDULER)
+                optimizer_with_lr_schedule = get_optimizer(self.OPTIMIZER, lr_schedule)
+                self.custom_model.compile(
+                    loss = self.LOSS_FUNCTION,
+                    optimizer = optimizer_with_lr_schedule,
+                    metrics = self.METRICS)  
+
+            else :
+                self.custom_model.compile(
+                    loss = self.LOSS_FUNCTION,
+                    optimizer = self.OPTIMIZER,
+                    metrics = self.METRICS
+                )
             
             self.custom_model = self.fit_model(self.custom_model)
             
             self.save_final_model(self.custom_model)
             self.save_plot()
 
-    def fit_model(self, model):
+    def fit_model(self, model : object) -> object:
         """This method will perform the operation on data and model architecture
             and will provide the trained model with call backs
            Written by : Hasnain
-        """
-        TENSORBOARD_ROOT_LOG_DIR = os.path.join(self.logs_dir, self.tensorboard_root_log_dir)
-        os.makedirs(TENSORBOARD_ROOT_LOG_DIR, exist_ok=True) 
-        model_ckpt_path = os.path.join(self.artifacts_dir,self.model_dir, self.model_ckpt_dir)
+        """ 
+        folder_name = get_unique_filename("logs")
+        self.tensorboard_logs_dir = os.path.join(self.parent_dir, self.logs_dir, self.tensorboard_root_log_dir, folder_name)
+        os.makedirs(self.tensorboard_logs_dir, exist_ok=True)
+
+        model_ckpt_path = os.path.join(self.parent_dir, self.artifacts_dir,self.model_dir, self.model_ckpt_dir)
         os.makedirs(model_ckpt_path, exist_ok=True)
+        
         early_stopping_cb, checkpointing_cb, tensorboard_cb = get_callbacks(
-            self.ES_PATIENCE, self.callbacked_model_name, model_ckpt_path, TENSORBOARD_ROOT_LOG_DIR
+            self.ES_PATIENCE, self.callbacked_model_name, model_ckpt_path, self.tensorboard_logs_dir
             )
 
         steps_per_epoch = self.train_generator.samples // self.train_generator.batch_size
         validation_steps = self.valid_generator.samples // self.valid_generator.batch_size
+
         start_time = timeit.default_timer()
         self.history = model.fit(
             self.train_generator,
@@ -182,7 +207,7 @@ class Experiment:
             and will save trained model in that
             Written by : Hasnain
         """
-        model_dir_path = os.path.join(self.artifacts_dir,self.model_dir, 'TrainedModels')
+        model_dir_path = os.path.join(self.parent_dir, self.artifacts_dir,self.model_dir, 'TrainedModels')
         os.makedirs(model_dir_path, exist_ok = True)
         unique_filename = get_unique_filename(self.model_name, is_model_name=True)
         path_to_model = os.path.join(model_dir_path, unique_filename)
@@ -199,7 +224,7 @@ class Experiment:
             and will save trained model in that
             Written by : Hasnain
         """
-        model_dir_path = os.path.join(self.artifacts_dir,self.model_dir, 'BaseModels')
+        model_dir_path = os.path.join(self.parent_dir, self.artifacts_dir,self.model_dir, 'BaseModels')
         os.makedirs(model_dir_path, exist_ok = True)
         unique_filename = get_unique_filename(self.MODEL_ARCHITECTURE, is_model_name=True)
         path_to_model = os.path.join(model_dir_path, unique_filename)
@@ -216,14 +241,14 @@ class Experiment:
             Written by : Hasnain
         """
 
-        plots_dir_path_results = os.path.join(self.artifacts_dir, self.plots_dir , "results")
+        plots_dir_path_results = os.path.join(self.parent_dir, self.artifacts_dir, self.plots_dir , "results")
         os.makedirs(plots_dir_path_results, exist_ok=True)
 
         unique_filename_result = get_unique_filename(self.plot_name)
         unique_filename_result = unique_filename_result+".png"
         path_to_plot_result = os.path.join(plots_dir_path_results, unique_filename_result)
         
-        plots_dir_path_models = os.path.join(self.artifacts_dir, self.plots_dir , "models")
+        plots_dir_path_models = os.path.join(self.parent_dir, self.artifacts_dir, self.plots_dir , "models")
         os.makedirs(plots_dir_path_models, exist_ok=True)
 
         unique_filename_model = get_unique_filename(self.model_name)
@@ -265,6 +290,31 @@ class Experiment:
         finally:
             print(f"\n************* Kudos, experiment compeleted successfully! ************\n")
     
+    def print_classwise_img_count(self):
+        """
+        Prints the number of images for every class in the dataset
+        """
+        train_data = get_classwise_img_count(self.train_generator.classes, [*self.train_generator.class_indices])
+        val_data = get_classwise_img_count(self.valid_generator.classes, [*self.valid_generator.class_indices])
+        print("*****" * 13)
+        print("Classwise count of Images")
+        print("*****" * 13)
+        print(f"\n==> Training Data : {train_data}\n")
+        print(f"\n==> Validation Data : {val_data}\n")
+    def img_grid(self, data_generator, nrows = 4 , ncols = 6, fig_width = 20, fig_height = 12, filepath = "grid_image.png"):
+        _, axs = plt.subplots(nrows= nrows, ncols=ncols, figsize=(fig_width, fig_height))
+        axs = axs.flatten()
+        ds = list(zip(data_generator.filepaths, data_generator.classes))
+        random.shuffle(ds)
+        for ax in axs :
+            selection = random.choice(ds)
+            img, label = selection[0], selection[1]
+            img = img_to_array(img)
+            ax.imshow(img)
+            classes_index_switched = {y:x for x,y in self.train_generator.class_indices.items()}
+            ax.title.set_text(classes_index_switched[label])
+            ax.axis('off')
+        plt.savefig(filepath)
     def record_logs(self):
         training_images = self.train_generator.n 
         val_images = self.valid_generator.n
@@ -282,7 +332,7 @@ class Experiment:
          self.DATA_AUGMENTATION, self.MODEL_ARCHITECTURE, self.FREEZE_ALL, self.FREEZ_TILL, training_images, val_images,
         self.NUM_CLASSES, classes] + history_values + [self.training_time, self.comments] 
         
-        self.csv_logs_dir = os.path.join(self.logs_dir, self.csv_logs_dir_name)
+        self.csv_logs_dir = os.path.join(self.parent_dir, self.logs_dir, self.csv_logs_dir_name)
         os.makedirs(self.csv_logs_dir, exist_ok=True)
         csv_logs_file = os.path.join(self.csv_logs_dir, self.csv_logs_file)
         
@@ -291,4 +341,29 @@ class Experiment:
             if os.stat(csv_logs_file).st_size == 0:
                 writer.writerow(logs_header)
             writer.writerow(logs_data)
+
+    def save_image_grid(self):
+        """
+        Returns:
+            (str): Unique image grid name
+        """
+        train_img_dir = os.path.join(self.parent_dir, self.artifacts_dir, "Images", "Training Images")
+        os.makedirs(train_img_dir, exist_ok=True)
+
+        unique_filename_result = get_unique_filename("img_grid")
+        unique_filename_result = unique_filename_result+".png"
+        path_to_train_img_grid = os.path.join(train_img_dir, unique_filename_result)
+        self.img_grid(data_generator = self.train_generator, filepath = path_to_train_img_grid)
+    
+        val_img_dir = os.path.join(self.parent_dir, self.artifacts_dir, "Images", "Validation Images")
+        os.makedirs(val_img_dir, exist_ok=True)
+
+        path_to_val_img_grid = os.path.join(val_img_dir, unique_filename_result)
+        self.img_grid(data_generator= self.valid_generator, filepath = path_to_val_img_grid)
+        print("\n")
+        print("*****" * 13)
+        print("Training and Validation Images have been saved at the following locations respectively:")
+        print("*****" * 13)
+        print(f"\n ==> {path_to_train_img_grid}\n")
+        print(f"\n ==> {path_to_val_img_grid}\n")
 

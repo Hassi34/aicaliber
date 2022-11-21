@@ -53,7 +53,7 @@ def get_data_generators(VALIDATION_SPLIT, IMAGE_SIZE, BATCH_SIZE, data_dir, DATA
   return train_generator, valid_generator
 
 
-def manage_input_data(self,input_image, IMAGE_SIZE):
+def manage_input_data(input_image, IMAGE_SIZE):
     """converting the input array into desired dimension
     Args:
         input_image (nd array): image nd array

@@ -139,3 +139,6 @@ Artifacts
 data_folder
 *.h5
 *.pth 
+requirements.txt
+*.pkl
+cachedir

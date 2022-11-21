@@ -1,6 +1,7 @@
 import time
-
 import tensorflow as tf
+import numpy as np 
+from PIL import Image
 '''
 import yaml
 def read_config(config_path):
@@ -19,3 +20,15 @@ def set_memory_growth():
     gpus = tf.config.experimental.list_physical_devices('GPU')
     for gpu in gpus:
         tf.config.experimental.set_memory_growth(gpu, True)
+
+def img_to_array(path):
+  img = Image.open(path)
+  img = np.asarray(img)
+  return img
+
+def get_classwise_img_count(classlabels: list, classnames: list) -> dict:
+    data = dict.fromkeys(classnames, 0)
+    for label in classlabels:
+        label = classnames[label]
+        data[label] += 1
+    return data
